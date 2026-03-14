@@ -35,6 +35,11 @@ app.get("/health", (req, res) => {
 
 app.use("/entries", entriesRouter);
 
+/** Env check for AI: does the process have ANTHROPIC_API_KEY set? (value not exposed) */
+app.get("/entries/ai-status", (req, res) => {
+  res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY?.trim()) });
+});
+
 /** Global error handler: 4-arg middleware */
 app.use((err, req, res, next) => {
   const status = err.statusCode ?? 500;

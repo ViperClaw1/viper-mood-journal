@@ -19,6 +19,7 @@ entriesRouter.get("/", async (req, res, next) => {
 /** POST /entries - create entry with mood, call Claude, save and return */
 entriesRouter.post("/", async (req, res, next) => {
   try {
+    console.log("[entries] POST /entries received, body keys:", Object.keys(req.body || {}));
     const mood = req.body?.mood;
     if (typeof mood !== "string" || !mood.trim()) {
       const err = new Error("mood is required and must be a non-empty string");
@@ -26,9 +27,10 @@ entriesRouter.post("/", async (req, res, next) => {
       return next(err);
     }
 
+    console.log("[entries] calling getJournalingResponse...");
     const aiResponse = await getJournalingResponse(mood.trim());
-    console.log("[route] aiResponse result:", aiResponse);
-    console.log("[route] API key loaded:", !!process.env.ANTHROPIC_API_KEY?.trim());
+    console.log("[entries] getJournalingResponse returned:", aiResponse === null ? "null" : `string length ${aiResponse.length}`);
+    console.log("[entries] API key loaded:", !!process.env.ANTHROPIC_API_KEY?.trim());
 
     const entry = await prisma.journalEntry.create({
       data: {

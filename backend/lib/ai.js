@@ -10,11 +10,20 @@ const ANTHROPIC_VERSION = "2023-06-01";
  * @returns {Promise<string|null>}
  */
 export async function getJournalingResponse(mood) {
+  console.log("[ai] getJournalingResponse called, mood length:", mood?.length ?? 0);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey?.trim()) {
     console.warn("[ai] ANTHROPIC_API_KEY is missing or empty; skipping Claude response");
     return null;
   }
+  console.log("[ai] calling Anthropic API...");
+
+  const body = {
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: JOURNALING_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: `Today I feel: ${mood}` }],
+  };
 
   const body = {
     model: MODEL,
