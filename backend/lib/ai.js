@@ -13,6 +13,7 @@ const MAX_TOKENS = 512;
 export async function getJournalingResponse(mood) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey?.trim()) {
+    console.warn("[ai] ANTHROPIC_API_KEY is missing or empty; skipping Claude response");
     return null;
   }
 
@@ -25,9 +26,16 @@ export async function getJournalingResponse(mood) {
       messages: [{ role: "user", content: `Today I feel: ${mood}` }],
     });
 
-    const textBlock = message.content?.find((block) => block.type === "text");
-    return textBlock?.text?.trim() ?? null;
-  } catch {
+    console.debug("[ai] message.content", JSON.stringify(message.content));
+
+    const parts = (message.content ?? [])
+      .filter((block) => block && typeof block.text === "string")
+      .map((block) => block.text.trim())
+      .filter(Boolean);
+    const combined = parts.join("\n").trim();
+    return combined || null;
+  } catch (err) {
+    console.error("[ai] Claude API error:", err?.message ?? err);
     return null;
   }
 }
