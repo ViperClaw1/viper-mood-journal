@@ -27,6 +27,8 @@ entriesRouter.post("/", async (req, res, next) => {
     }
 
     const aiResponse = await getJournalingResponse(mood.trim());
+    console.log("[route] aiResponse result:", aiResponse);
+    console.log("[route] API key loaded:", !!process.env.ANTHROPIC_API_KEY?.trim());
 
     const entry = await prisma.journalEntry.create({
       data: {
