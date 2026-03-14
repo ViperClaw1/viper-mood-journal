@@ -26,13 +26,24 @@ export async function getJournalingResponse(mood) {
       messages: [{ role: "user", content: `Today I feel: ${mood}` }],
     });
 
-    console.debug("[ai] message.content", JSON.stringify(message.content));
+    const content = Array.isArray(message?.content) ? message.content : [];
+    console.log("[ai] content length", content.length, "blocks:", content.map((b) => b?.type ?? "?").join(", "));
 
-    const parts = (message.content ?? [])
-      .filter((block) => block && typeof block.text === "string")
-      .map((block) => block.text.trim())
-      .filter(Boolean);
+    const parts = [];
+    for (const block of content) {
+      if (!block || typeof block !== "object") continue;
+      const text =
+        typeof block.text === "string"
+          ? block.text
+          : typeof block.thinking === "string"
+            ? block.thinking
+            : typeof block.content === "string"
+              ? block.content
+              : null;
+      if (text?.trim()) parts.push(text.trim());
+    }
     const combined = parts.join("\n").trim();
+    if (!combined) console.log("[ai] no text extracted; raw content sample:", JSON.stringify(content.slice(0, 2)));
     return combined || null;
   } catch (err) {
     console.error("[ai] Claude API error:", err?.message ?? err);
