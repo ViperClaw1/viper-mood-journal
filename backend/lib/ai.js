@@ -1,6 +1,6 @@
 const JOURNALING_SYSTEM_PROMPT = `You are a supportive journaling companion. The user shares how they feel (e.g. a mood or short reflection). Respond briefly with warmth and encouragement. Reflect their feeling back gently and offer a short, thoughtful perspective—no advice unless they ask. Keep responses to 2–4 sentences. Do not give medical or diagnostic language.`;
 
-const MODEL = "claude-sonnet-4-5-20250514";
+const MODEL = "claude-sonnet-4-5-20250929";
 const MAX_TOKENS = 512;
 const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -70,7 +70,8 @@ export async function getJournalingResponse(mood) {
     }
     return combined || null;
   } catch (err) {
-    console.error("[ai] Claude API error:", err?.message ?? err);
+    console.error("[ai] Claude API error:", err?.message ?? err, err?.cause);
+    console.warn("[ai] Returning null due to unexpected error — check API key, network, and model name");
     return null;
   }
 }
