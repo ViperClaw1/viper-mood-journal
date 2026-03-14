@@ -25,16 +25,13 @@ export async function getJournalingResponse(mood) {
     messages: [{ role: "user", content: `Today I feel: ${mood}` }],
   };
 
-  const body = {
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: JOURNALING_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: `Today I feel: ${mood}` }],
-  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -42,6 +39,7 @@ export async function getJournalingResponse(mood) {
       },
       body: JSON.stringify(body),
     });
+    clearTimeout(timeoutId);
 
     const raw = await res.text();
     if (!res.ok) {
@@ -79,8 +77,8 @@ export async function getJournalingResponse(mood) {
     }
     return combined || null;
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error("[ai] Claude API error:", err?.message ?? err, err?.cause);
-    console.warn("[ai] Returning null due to unexpected error — check API key, network, and model name");
     return null;
   }
 }
