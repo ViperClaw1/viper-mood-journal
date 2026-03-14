@@ -2,6 +2,8 @@
 
 A journaling app where you write your thoughts or mood and receive a response from Claude AI. Backend (Node.js, Express, Prisma, PostgreSQL) runs in Docker; frontend (Vite, Vanilla JS) runs on the host.
 
+**Technical documentation:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (architecture, backend, frontend, data flow, env, Docker) · [docs/API.md](docs/API.md) (API reference).
+
 ## Prerequisites
 
 - **Docker** and **Docker Compose** – [Install Docker](https://docs.docker.com/get-docker/)
