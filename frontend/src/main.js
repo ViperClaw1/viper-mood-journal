@@ -21,6 +21,17 @@ import {
   autoResizeTextarea,
 } from "./ui.js";
 
+function aiErrorToMessage(code) {
+  const messages = {
+    key_missing:
+      "Claude couldn't respond: API key is not set on the server. Add ANTHROPIC_API_KEY in Railway → backend → Variables, then redeploy.",
+    http_error: "Claude API returned an error. Check your API key and model name in Railway logs.",
+    empty_response: "Claude returned no text. Check Railway backend logs for details.",
+    network_error: "Could not reach Claude (network or timeout). Check Railway logs.",
+  };
+  return messages[code] ?? `Claude couldn't respond (${code}). Check Railway backend logs.`;
+}
+
 async function bootstrap() {
   const { textarea, form } = getFormElements();
 
@@ -108,7 +119,15 @@ async function handleSubmit(textarea) {
     const entry = await createEntry(trimmed);
 
     prependEntry(entry);
-    setCurrentResponse(entry.aiResponse ?? "");
+    if (entry.aiError) {
+      const msg = aiErrorToMessage(entry.aiError);
+      setCurrentResponse(msg);
+      setError(msg);
+      showError(msg);
+    } else {
+      setCurrentResponse(entry.aiResponse ?? "");
+      clearError();
+    }
 
     renderCurrentResponse(getCurrentResponse());
     renderHistory(getEntries());

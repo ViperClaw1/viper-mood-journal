@@ -5,16 +5,16 @@ const MAX_TOKENS = 512;
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /**
- * Calls Claude via direct HTTP. Returns response text or null on failure.
+ * Calls Claude via direct HTTP.
  * @param {string} mood - User's mood/entry text
- * @returns {Promise<string|null>}
+ * @returns {Promise<{ text: string|null, errorCode?: string }>} errorCode: key_missing | http_error | empty_response | network_error
  */
 export async function getJournalingResponse(mood) {
   console.log("[ai] getJournalingResponse called, mood length:", mood?.length ?? 0);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey?.trim()) {
-    console.warn("[ai] ANTHROPIC_API_KEY is missing or empty; skipping Claude response");
-    return null;
+    console.warn("[ai] ANTHROPIC_API_KEY is missing or empty");
+    return { text: null, errorCode: "key_missing" };
   }
   console.log("[ai] calling Anthropic API...");
 
@@ -44,7 +44,7 @@ export async function getJournalingResponse(mood) {
     const raw = await res.text();
     if (!res.ok) {
       console.error("[ai] Claude API HTTP error", res.status, raw.slice(0, 500));
-      return null;
+      return { text: null, errorCode: "http_error" };
     }
 
     let data;
@@ -52,7 +52,7 @@ export async function getJournalingResponse(mood) {
       data = JSON.parse(raw);
     } catch {
       console.error("[ai] Claude API invalid JSON response", raw.slice(0, 300));
-      return null;
+      return { text: null, errorCode: "http_error" };
     }
 
     const content = Array.isArray(data.content) ? data.content : [];
@@ -74,11 +74,12 @@ export async function getJournalingResponse(mood) {
     const combined = parts.join("\n").trim();
     if (!combined) {
       console.log("[ai] no text in content; sample:", JSON.stringify(content.slice(0, 2)));
+      return { text: null, errorCode: "empty_response" };
     }
-    return combined || null;
+    return { text: combined };
   } catch (err) {
     clearTimeout(timeoutId);
     console.error("[ai] Claude API error:", err?.message ?? err, err?.cause);
-    return null;
+    return { text: null, errorCode: "network_error" };
   }
 }

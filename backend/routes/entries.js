@@ -28,18 +28,19 @@ entriesRouter.post("/", async (req, res, next) => {
     }
 
     console.log("[entries] calling getJournalingResponse...");
-    const aiResponse = await getJournalingResponse(mood.trim());
-    console.log("[entries] getJournalingResponse returned:", aiResponse === null ? "null" : `string length ${aiResponse.length}`);
-    console.log("[entries] API key loaded:", !!process.env.ANTHROPIC_API_KEY?.trim());
+    const { text: aiText, errorCode: aiErrorCode } = await getJournalingResponse(mood.trim());
+    console.log("[entries] getJournalingResponse:", aiText ? `length ${aiText.length}` : aiErrorCode ?? "null");
 
     const entry = await prisma.journalEntry.create({
       data: {
         mood: mood.trim(),
-        aiResponse: aiResponse ?? undefined,
+        aiResponse: aiText ?? undefined,
       },
     });
 
-    res.status(201).json(entry);
+    const payload = { ...entry };
+    if (aiErrorCode) payload.aiError = aiErrorCode;
+    res.status(201).json(payload);
   } catch (err) {
     next(err);
   }
