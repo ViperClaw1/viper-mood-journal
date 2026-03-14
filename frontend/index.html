@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mood Journal</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <h1 class="app-title">Mood Journal</h1>
+        <p class="app-subtitle">A calm space to reflect with Claude</p>
+      </header>
+
+      <main class="app-main">
+        <section class="journal-section" aria-label="New journal entry">
+          <form id="journal-form" class="journal-form">
+            <label for="journal-input" class="journal-label">
+              What's on your mind today?
+            </label>
+            <textarea
+              id="journal-input"
+              name="journal-input"
+              class="journal-input"
+              rows="4"
+              autocomplete="off"
+              placeholder="Write freely about your thoughts, feelings, or mood..."
+            ></textarea>
+
+            <div class="journal-actions">
+              <div class="journal-meta">
+                <span class="shortcut-hint">Ctrl/Cmd + Enter to submit</span>
+                <span id="loading" class="loading-indicator" aria-live="polite" hidden>
+                  Claude is thinking...
+                </span>
+              </div>
+              <button id="submit-btn" type="submit" class="primary-button">
+                Get Reflection
+              </button>
+            </div>
+          </form>
+
+          <div id="error" class="error-banner" role="alert" aria-live="assertive" hidden></div>
+        </section>
+
+        <section
+          id="ai-response-section"
+          class="response-section"
+          aria-label="AI response"
+        >
+          <h2 class="section-title">Latest reflection</h2>
+          <div id="ai-response" class="response-card response-empty">
+            Your reflection with Claude will appear here.
+          </div>
+        </section>
+
+        <section class="history-section" aria-label="Journal history">
+          <div class="history-header">
+            <h2 class="section-title">History</h2>
+          </div>
+          <div id="history" class="history-container">
+            <div id="history-list" class="history-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+

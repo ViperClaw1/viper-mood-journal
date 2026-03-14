@@ -1,0 +1,18 @@
+# Environment and secrets
+.env
+.env.local
+backend/.env
+
+# Dependencies and build output
+node_modules
+backend/node_modules
+frontend/node_modules
+frontend/dist
+
+# Logs and temp
+*.log
+logs
+
+# OS and editor
+.DS_Store
+.cursor
