@@ -400,13 +400,14 @@ body {
 .toast {
   position: fixed;
   bottom: 24px;
-  left: 50%;
+  right: 24px;
   transform: translateX(-50%) translateY(80px);
   padding: 12px 20px;
-  background: var(--text-main);
-  color: var(--bg-elevated);
+  background: var(--bg-elevated);
+  color: var(--text-main);
   font-size: 0.9rem;
   font-weight: 500;
+  border-color: var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-soft);
   opacity: 0;
