@@ -17,6 +17,7 @@ import {
   setLoading as uiSetLoading,
   showError,
   clearError,
+  showToast,
   renderCurrentResponse,
   renderHistory,
   autoResizeTextarea,
@@ -154,6 +155,7 @@ async function handleDeleteEntry(id) {
   try {
     await deleteEntry(id);
     removeEntryById(id);
+    showToast("Entry deleted");
     if (wasFirst) {
       const next = getEntries()[0];
       setCurrentResponse(next ? (next.aiResponse ?? "") : "");

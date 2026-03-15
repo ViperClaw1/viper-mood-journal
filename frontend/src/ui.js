@@ -38,6 +38,26 @@ export function clearError() {
   showError(null);
 }
 
+const TOAST_DURATION_MS = 3000;
+
+export function showToast(message) {
+  if (!message) return;
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    el.setAttribute("aria-live", "polite");
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add("toast-visible");
+  clearTimeout(el._toastTimeout);
+  el._toastTimeout = setTimeout(() => {
+    el.classList.remove("toast-visible");
+  }, TOAST_DURATION_MS);
+}
+
 export function renderCurrentResponse(text) {
   if (!aiResponseEl) return;
 
@@ -141,12 +161,6 @@ export function renderHistory(entries, onDeleteEntry) {
     historyList.appendChild(card);
   }
 
-  if (historyContainer && historyContainer.firstElementChild) {
-    historyContainer.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }
 }
 
 export function autoResizeTextarea() {
