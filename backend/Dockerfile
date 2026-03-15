@@ -9,7 +9,7 @@ RUN npm ci
 # Prisma config, schema and generate client (DATABASE_URL needed by Prisma 7 config at generate time)
 COPY prisma.config.ts ./
 COPY prisma ./prisma/
-ENV DATABASE_URL="postgresql://postgres:postgres@postgres:5434/mood_journal"
+ENV DATABASE_URL="postgresql://postgres:postgres@postgres:5432/mood_journal"
 RUN npx prisma generate
 
 # Application source

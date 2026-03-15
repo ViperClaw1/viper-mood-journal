@@ -45,3 +45,26 @@ entriesRouter.post("/", async (req, res, next) => {
     next(err);
   }
 });
+
+/** DELETE /entries/:id - delete one journal entry */
+export async function deleteEntryHandler(req, res, next) {
+  console.log("[entries] DELETE /entries/:id hit, id =", req.params.id);
+  try {
+    const id = req.params.id;
+    if (!id || !String(id).trim()) {
+      const err = new Error("Entry id is required");
+      err.statusCode = 400;
+      return next(err);
+    }
+    await prisma.journalEntry.delete({ where: { id: id.trim() } });
+    res.status(204).send();
+  } catch (err) {
+    if (err.code === "P2025") {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+    next(err);
+  }
+}
+
+// Use bracket notation so "delete" is never a bare identifier (avoids any tooling/reserved-word edge cases)
+entriesRouter["delete"]("/:id", deleteEntryHandler);
