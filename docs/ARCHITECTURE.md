@@ -105,8 +105,8 @@ mood-journal/
 | `backend/routes/entries.js` | GET list entries (Prisma), POST validate mood → call AI → create entry → respond with entry (+ optional `aiError`). |
 | `backend/lib/db.js` | Build Prisma client with `PrismaPg` and `DATABASE_URL`; throw if `DATABASE_URL` missing. |
 | `backend/lib/ai.js` | Call Anthropic `/v1/messages` with system prompt and user message; parse `content` blocks; return `{ text }` or `{ text: null, errorCode }`. |
-| `frontend/src/main.js` | Bootstrap, wire form/textarea, load initial history, handle submit, map `aiError` to user message. |
-| `frontend/src/api.js` | Resolve `API_BASE` (VITE_API_URL or production fallback or `/api`), implement `getEntries` and `createEntry`, parse errors. |
+| `frontend/src/main.js` | Bootstrap, wire form/textarea, load initial history, handle submit, handle delete entry, map `aiError` to user message. |
+| `frontend/src/api.js` | Resolve `API_BASE` (VITE_API_URL or production fallback or `/api`), implement `getEntries`, `createEntry`, and `deleteEntry`, parse errors. |
 | `frontend/src/state.js` | Central in-memory state for entries, loading, error, currentResponse; getters/setters. |
 | `frontend/src/ui.js` | DOM queries, show/hide loading and error, render “Latest reflection” and history list. |
 
@@ -122,7 +122,7 @@ mood-journal/
 
 ### Express app structure
 
-1. CORS middleware (origin from `FRONTEND_ORIGIN` or `*`, methods GET/POST/OPTIONS, headers Content-Type/Accept).
+1. CORS middleware (origin from `FRONTEND_ORIGIN` or `*`, methods GET/POST/DELETE/OPTIONS, headers Content-Type/Accept).
 2. `express.json()` for parsing JSON bodies.
 3. Routes: `GET /`, `GET /health`, `app.use("/entries", entriesRouter)`, `GET /entries/ai-status`.
 4. Global error handler: `(err, req, res, next) => res.status(err.statusCode ?? 500).json({ error: message })`.
@@ -135,6 +135,7 @@ There are no separate “controllers” or “services” in the codebase; route
 - The router is mounted at `/entries`, so:
   - `GET /entries` → list entries
   - `POST /entries` → create entry (with AI)
+  - `DELETE /entries/:id` → delete entry by id
 - `GET /entries/ai-status` is defined on the main app in `index.js` (not on the router), so it does not conflict with the router’s `GET /`.
 
 ### Prisma / database access
@@ -186,6 +187,7 @@ See **docs/API.md** for a concise endpoint reference. Summary:
 | GET | `/health` | Health check; returns `{ status: "ok" }`. |
 | GET | `/entries` | List all journal entries (newest first). Response: JSON array of `JournalEntry`. |
 | POST | `/entries` | Create one entry. Body: `{ mood: string }`. Response: 201 + created entry; may include `aiError` when Claude fails. |
+| DELETE | `/entries/:id` | Delete one entry by id. Response: 204 No Content; 404 if not found. |
 | GET | `/entries/ai-status` | Check if `ANTHROPIC_API_KEY` is set (value not exposed). Response: `{ ok: true, hasApiKey: boolean }`. |
 
 ---
@@ -275,6 +277,7 @@ No relations; no other models.
 - **Base URL:** `getApiBase()`: (1) `import.meta.env.VITE_API_URL` if set (trimmed trailing slash), (2) if `window.location.origin === "https://viper-mood-journal.vercel.app"` then hardcoded production backend URL, (3) else `"/api"` (proxied by Vite to `http://localhost:3000` with path rewritten so `/api/entries` → `http://localhost:3000/entries`).
 - **getEntries:** `GET ${API_BASE}/entries`, Accept application/json; throws on !res.ok with message from body or statusText.
 - **createEntry:** `POST ${API_BASE}/entries`, Content-Type and Accept application/json, body `JSON.stringify({ mood })`; on !res.ok throws; on success validates `data.id`, `data.mood`, `data.createdAt` and returns `data`.
+- **deleteEntry:** `DELETE ${API_BASE}/entries/${id}`; on !res.ok throws; on 204 returns without parsing body.
 
 ### Loading state handling
 
@@ -288,7 +291,7 @@ No relations; no other models.
 
 ### History rendering
 
-- `renderHistory(getEntries())` clears `#history-list` and, for each entry, creates an article with date, “You” (mood), “Claude” (aiResponse or “No response recorded.”). No pagination; all entries in memory are rendered.
+- `renderHistory(getEntries(), onDeleteEntry)` clears `#history-list` and, for each entry, creates an article with date, “Journal” tag, optional delete (trash) button when `onDeleteEntry` is provided, “You” (mood), “Claude” (aiResponse or “No response recorded.”). No pagination; all entries in memory are rendered.
 
 ### Error handling in the UI
 
@@ -319,6 +322,10 @@ No relations; no other models.
 ### 5. Frontend after response
 
 - Frontend receives the created entry. It prepends it to state, then either displays the `aiError` message (reflection area + error banner) or the `aiResponse` as the latest reflection and clears error. It re-renders the reflection and history, clears the textarea, and sets loading false. On throw (network or API error), it shows the error message and sets loading false.
+
+### 6. User deletes an entry
+
+- User clicks the trash icon on an entry card → `handleDeleteEntry(id)` runs. Frontend calls `DELETE /entries/:id`. On success: `removeEntryById(id)`; if the deleted entry was the one shown as “Latest reflection” (first in list), current reflection is set to the new first entry’s `aiResponse` or empty; then `renderCurrentResponse` and `renderHistory(entries, onDeleteEntry)` re-render the UI. On failure, error state is set and `showError` displays the message.
 
 ---
 

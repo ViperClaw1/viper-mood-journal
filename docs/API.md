@@ -99,6 +99,25 @@ Body: created `JournalEntry` plus optional `aiError`:
 
 ---
 
+### DELETE /entries/:id
+
+**Purpose:** Delete a journal entry by id.
+
+**Request:**
+
+- **Method:** DELETE  
+- **Path param:** `id` — the entry’s cuid. If missing or empty, the backend responds with 400.
+
+**Response:** `204 No Content` (no body).
+
+**Errors:**
+
+- `400` — Missing or empty `id`. Body: `{ "error": "..." }`.
+- `404` — Entry not found (e.g. already deleted). Body: `{ "error": "Entry not found" }`.
+- `500` — Server error. Body: `{ "error": "..." }`.
+
+---
+
 ### GET /entries/ai-status
 
 **Purpose:** Check whether the backend has an Anthropic API key configured (value never exposed). Useful for debugging production without logging secrets.
@@ -119,7 +138,7 @@ or
 
 ## CORS
 
-The backend allows origins from the `FRONTEND_ORIGIN` environment variable (comma-separated, no trailing slash). If unset, all origins are allowed (`*`). Allowed methods: GET, POST, OPTIONS. Allowed headers: Content-Type, Accept.
+The backend allows origins from the `FRONTEND_ORIGIN` environment variable (comma-separated, no trailing slash). If unset, all origins are allowed (`*`). Allowed methods: GET, POST, DELETE, OPTIONS. Allowed headers: Content-Type, Accept.
 
 ---
 

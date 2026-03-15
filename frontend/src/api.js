@@ -98,3 +98,17 @@ export async function createEntry(userTextRaw) {
   return data;
 }
 
+export async function deleteEntry(id) {
+  if (!id || typeof id !== "string") {
+    throw new Error("Entry id is required.");
+  }
+  const res = await fetch(`${API_BASE}/entries/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw await parseErrorResponse(res);
+  }
+  // 204 No Content - no body to parse
+}
+

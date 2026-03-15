@@ -1,9 +1,10 @@
 import "./style.css";
-import { getEntries as apiGetEntries, createEntry } from "./api.js";
+import { getEntries as apiGetEntries, createEntry, deleteEntry } from "./api.js";
 import {
   getEntries,
   setEntries,
   prependEntry,
+  removeEntryById,
   getLoading,
   setLoading,
   getError,
@@ -85,7 +86,7 @@ async function loadInitialHistory() {
   try {
     const entries = await apiGetEntries();
     setEntries(entries);
-    renderHistory(getEntries());
+    renderHistory(getEntries(), (id) => handleDeleteEntry(id));
 
     const first = getEntries()[0];
     if (first && first.aiResponse) {
@@ -130,7 +131,7 @@ async function handleSubmit(textarea) {
     }
 
     renderCurrentResponse(getCurrentResponse());
-    renderHistory(getEntries());
+    renderHistory(getEntries(), (id) => handleDeleteEntry(id));
 
     textarea.value = "";
     autoResizeTextarea();
@@ -142,6 +143,26 @@ async function handleSubmit(textarea) {
     showError(getError());
   } finally {
     setClaudeLoading(false);
+  }
+}
+
+async function handleDeleteEntry(id) {
+  if (getLoading()) return;
+  const entriesBefore = getEntries();
+  const wasFirst = entriesBefore.length > 0 && entriesBefore[0].id === id;
+
+  try {
+    await deleteEntry(id);
+    removeEntryById(id);
+    if (wasFirst) {
+      const next = getEntries()[0];
+      setCurrentResponse(next ? (next.aiResponse ?? "") : "");
+      renderCurrentResponse(getCurrentResponse());
+    }
+    renderHistory(getEntries(), (entryId) => handleDeleteEntry(entryId));
+  } catch (err) {
+    setError(err?.message || "Could not delete entry.");
+    showError(getError());
   }
 }
 

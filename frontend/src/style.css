@@ -315,6 +315,13 @@ body {
   margin-bottom: 2px;
 }
 
+.entry-header-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
 .entry-date {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -329,6 +336,24 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 500;
+}
+
+.entry-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: -4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.entry-delete-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .entry-user-text {

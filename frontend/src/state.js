@@ -17,6 +17,10 @@ export function prependEntry(entry) {
   state.entries = [entry, ...state.entries];
 }
 
+export function removeEntryById(id) {
+  state.entries = state.entries.filter((e) => e.id !== id);
+}
+
 export function getLoading() {
   return state.loading;
 }
