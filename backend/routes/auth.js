@@ -49,6 +49,24 @@ function getClearCookieOptions() {
   };
 }
 
+function clearAuthCookie(res) {
+  const base = getClearCookieOptions();
+  const variants = [
+    base,
+    { ...base, sameSite: "lax", secure: false },
+    { ...base, sameSite: "none", secure: true },
+  ];
+
+  for (const opts of variants) {
+    res.clearCookie(COOKIE_NAME, opts);
+    res.cookie(COOKIE_NAME, "", {
+      ...opts,
+      expires: new Date(0),
+      maxAge: 0,
+    });
+  }
+}
+
 function issueAuthCookie(res, user) {
   const token = jwt.sign({ email: user.email }, getJwtSecret(), {
     subject: user.id,
@@ -252,7 +270,7 @@ export function createAuthRouter() {
   // forgot-password + reset-password are registered on app in index.js
 
   r.post("/logout", (req, res) => {
-    res.clearCookie(COOKIE_NAME, getClearCookieOptions());
+    clearAuthCookie(res);
     return res.status(204).send();
   });
 

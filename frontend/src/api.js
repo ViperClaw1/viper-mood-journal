@@ -63,9 +63,10 @@ export async function syncSessionAfterAuth(responseBody) {
   const body = responseBody && typeof responseBody === "object" ? responseBody : {};
   const fromBody =
     typeof body.accessToken === "string" && body.accessToken.trim() ? body.accessToken.trim() : null;
+  const hasUserPayload = Boolean(body.user && typeof body.user === "object");
   if (fromBody) {
-    setSession(fromBody, body.user ?? null);
-    return;
+    setSession(fromBody, hasUserPayload ? body.user : null);
+    if (hasUserPayload) return;
   }
   const res = await fetchSession();
   if (!res.ok) return;
