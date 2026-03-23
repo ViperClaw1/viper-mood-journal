@@ -66,7 +66,21 @@ export async function syncSessionAfterAuth(responseBody) {
   const hasUserPayload = Boolean(body.user && typeof body.user === "object");
   if (fromBody) {
     setSession(fromBody, hasUserPayload ? body.user : null);
-    if (hasUserPayload) return;
+    // Ensure theme/profile are available right after login, even when response is token-only.
+    const hasTheme = typeof body.user?.theme === "string" && body.user.theme.trim();
+    if (!hasUserPayload || !hasTheme) {
+      try {
+        const me = await getMeRequest();
+        if (me?.user) {
+          setSession(fromBody, me.user);
+          return;
+        }
+      } catch {
+        // Fallback to cookie-based session hydration below.
+      }
+    } else {
+      return;
+    }
   }
   const res = await fetchSession();
   if (!res.ok) return;
