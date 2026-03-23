@@ -1,5 +1,6 @@
 import { getEntries as apiGetEntries, createEntry, deleteEntry, getMeRequest } from "../api.js";
-import { getCachedUser } from "../authSession.js";
+import { getAccessToken, getCachedUser, setSession } from "../authSession.js";
+import { applyThemeForUser } from "../theme.js";
 import {
   getEntries,
   setEntries,
@@ -124,6 +125,12 @@ export function mountJournalPage(root) {
     try {
       const data = await getMeRequest();
       if (disposed) return;
+      const token = getAccessToken();
+      if (data?.user && token) {
+        setSession(token, data.user);
+      } else {
+        applyThemeForUser(data?.user ?? null);
+      }
       const name = typeof data?.user?.name === "string" ? data.user.name.trim() : "";
       userDisplayEl.textContent = name ? `Signed in as ${name}` : "Signed in";
     } catch {
