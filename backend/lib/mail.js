@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 
 let cachedTransport = null;
+const MAIL_SEND_TIMEOUT_MS = 12000;
 
 function smtpConfigured() {
   return Boolean(
@@ -26,6 +27,11 @@ function getTransport() {
     port,
     secure,
     auth: { user, pass },
+    // Prevent requests from hanging forever on unreachable/blocked SMTP in production.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    dnsTimeout: 10000,
   });
   return cachedTransport;
 }
@@ -84,11 +90,21 @@ export async function sendPasswordResetEmail({ to, resetUrl }) {
     <p>This link is valid for 1 hour. If you did not request this, you can ignore this email.</p>
   `.trim();
 
-  await transport.sendMail({
+  const sendPromise = transport.sendMail({
     from,
     to,
     subject: "Reset your password",
     text,
     html,
   });
+
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      const err = new Error(`SMTP send timeout after ${MAIL_SEND_TIMEOUT_MS}ms`);
+      err.code = "MAIL_SEND_TIMEOUT";
+      reject(err);
+    }, MAIL_SEND_TIMEOUT_MS);
+  });
+
+  await Promise.race([sendPromise, timeoutPromise]);
 }

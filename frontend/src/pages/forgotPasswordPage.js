@@ -1,6 +1,8 @@
 import { forgotPasswordRequest } from "../api.js";
 
 const FORGOT_SUCCESS_COPY = "If this email exists, a reset link has been sent.";
+const SUBMIT_DEFAULT_COPY = "Send reset link";
+const SUBMIT_PENDING_COPY = "Please wait";
 
 export function mountForgotPasswordPage(root) {
   root.innerHTML = `
@@ -17,7 +19,7 @@ export function mountForgotPasswordPage(root) {
           </div>
           <p id="forgot-error" class="auth-error" role="alert" hidden></p>
           <p id="forgot-success" class="auth-success" role="status" hidden></p>
-          <button type="submit" class="primary-button auth-submit">Send reset link</button>
+          <button type="submit" class="primary-button auth-submit">${SUBMIT_DEFAULT_COPY}</button>
         </form>
       </div>
       <p class="auth-footer"><a href="/login" data-navigo>Back to log in</a></p>
@@ -29,6 +31,7 @@ export function mountForgotPasswordPage(root) {
   const emailErr = root.querySelector("#forgot-email-error");
   const errEl = root.querySelector("#forgot-error");
   const okEl = root.querySelector("#forgot-success");
+  const submitBtn = root.querySelector(".auth-submit");
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -50,6 +53,8 @@ export function mountForgotPasswordPage(root) {
       return;
     }
     emailInput.setAttribute("aria-invalid", "false");
+    submitBtn.disabled = true;
+    submitBtn.textContent = SUBMIT_PENDING_COPY;
     try {
       await forgotPasswordRequest(email);
       okEl.textContent = FORGOT_SUCCESS_COPY;
@@ -57,6 +62,9 @@ export function mountForgotPasswordPage(root) {
     } catch (err) {
       errEl.textContent = err.message || "Request failed";
       errEl.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = SUBMIT_DEFAULT_COPY;
     }
   };
 
