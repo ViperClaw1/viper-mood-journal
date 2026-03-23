@@ -18,6 +18,18 @@ services:
     networks:
       - app
 
+  # Backend: secrets and optional vars come from env_file (backend/.env).
+  # Copy backend/.env.example -> backend/.env (see repo root .env.example for the same template).
+  # docker-compose only overrides PORT + DATABASE_URL here so the container uses host "postgres", not localhost.
+  #
+  # Expected in backend/.env for full auth + mail + AI:
+  #   ANTHROPIC_API_KEY, JWT_SECRET,
+  #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL,
+  #   NODE_ENV (optional), FRONTEND_ORIGIN, PUBLIC_API_URL (optional; avatar URLs),
+  #   MAIL_FROM, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
+  #   PASSWORD_RESET_FRONTEND_URL
+  #
+  # Rebuild after route/code changes: docker compose build --no-cache backend
   backend:
     build:
       context: ./backend

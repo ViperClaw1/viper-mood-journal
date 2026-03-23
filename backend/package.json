@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx prisma migrate deploy && node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "test:pw-reset-e2e": "node scripts/test-password-reset-e2e.mjs"
   },
   "keywords": [],
   "author": "",
@@ -14,11 +15,18 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "cors": "^2.8.5",
-    "@prisma/client": "^7.5.0",
     "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^8.0.3",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "pg": "^8.13.0"
   },
   "devDependencies": {

@@ -9,9 +9,33 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Theme {
+  LIGHT
+  DARK
+}
+
+model User {
+  id               String         @id @default(cuid())
+  name             String
+  email            String         @unique
+  passwordHash     String
+  avatarUrl        String?
+  theme            Theme          @default(LIGHT)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime       @default(now())
+  entries          JournalEntry[]
+
+  @@index([resetToken])
+}
+
 model JournalEntry {
   id         String   @id @default(cuid())
   mood       String
   aiResponse String?
   createdAt  DateTime @default(now())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

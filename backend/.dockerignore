@@ -10,3 +10,11 @@ logs
 *.log
 README.md
 .cursor
+
+# Dev artifacts — keep build context small (saves disk I/O during export)
+cookies.txt
+auth_cookie.txt
+uploads
+scripts
+coverage
+.nyc_output

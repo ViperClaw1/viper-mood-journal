@@ -1,3 +1,5 @@
+import { getAccessToken, setSession } from "./authSession.js";
+
 const PRODUCTION_API_URL = "https://viper-mood-journal-production.up.railway.app";
 
 function getApiBase() {
@@ -9,7 +11,22 @@ function getApiBase() {
   return "/api";
 }
 
-const API_BASE = getApiBase();
+export const API_BASE = getApiBase();
+
+/** Full navigation URL to start Google OAuth (same origin /api or absolute backend URL). */
+export function getGoogleAuthUrl() {
+  const base = API_BASE.startsWith("http") ? API_BASE : `${window.location.origin}${API_BASE}`;
+  return `${base}/auth/google`;
+}
+
+function authHeaders(extra = {}) {
+  const headers = { Accept: "application/json", ...extra };
+  const token = getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 async function parseErrorResponse(response) {
   let message = response.statusText || "Request failed";
@@ -20,7 +37,7 @@ async function parseErrorResponse(response) {
       message = data.error.trim();
     }
   } catch {
-    // ignore JSON parse errors, fall back to statusText
+    // ignore
   }
 
   const error = new Error(message);
@@ -28,12 +45,161 @@ async function parseErrorResponse(response) {
   return error;
 }
 
+/** Hydrate SPA from HttpOnly cookie (returns accessToken + user). */
+export async function fetchSession() {
+  return fetch(`${API_BASE}/auth/session`, {
+    method: "GET",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+  });
+}
+
+/**
+ * Router guards use in-memory JWT (Bearer); HttpOnly cookie is invisible to JS.
+ * After login/register, prefer body.accessToken; if missing or parse failed, GET /auth/session
+ * reads the cookie server-side and returns the same token + user.
+ */
+export async function syncSessionAfterAuth(responseBody) {
+  const body = responseBody && typeof responseBody === "object" ? responseBody : {};
+  const fromBody =
+    typeof body.accessToken === "string" && body.accessToken.trim() ? body.accessToken.trim() : null;
+  if (fromBody) {
+    setSession(fromBody, body.user ?? null);
+    return;
+  }
+  const res = await fetchSession();
+  if (!res.ok) return;
+  const data = await res.json().catch(() => ({}));
+  const token =
+    typeof data.accessToken === "string" && data.accessToken.trim() ? data.accessToken.trim() : null;
+  if (token) {
+    setSession(token, data.user ?? null);
+  }
+}
+
+export async function loginRequest(email, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function registerRequest(name, email, password) {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function logoutRequest() {
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: authHeaders(),
+  });
+}
+
+export async function forgotPasswordRequest(email) {
+  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function resetPasswordRequest(token, password) {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function getMeRequest() {
+  const res = await fetch(`${API_BASE}/users/me`, {
+    method: "GET",
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw await parseErrorResponse(res);
+  return res.json();
+}
+
+export async function updateMeRequest(body) {
+  const res = await fetch(`${API_BASE}/users/me`, {
+    method: "PUT",
+    credentials: "include",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseErrorResponse(res);
+  return res.json();
+}
+
+/** Multipart upload; field name must be `avatar`. Updates user.avatarUrl on the server. */
+export async function uploadAvatarRequest(file) {
+  const fd = new FormData();
+  fd.append("avatar", file);
+  const res = await fetch(`${API_BASE}/users/me/avatar`, {
+    method: "POST",
+    credentials: "include",
+    headers: authHeaders(),
+    body: fd,
+  });
+  if (!res.ok) throw await parseErrorResponse(res);
+  return res.json();
+}
+
+export async function updatePasswordRequest(currentPassword, newPassword) {
+  const res = await fetch(`${API_BASE}/users/me/password`, {
+    method: "PUT",
+    credentials: "include",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!res.ok) throw await parseErrorResponse(res);
+  return res.json();
+}
+
 export async function getEntries() {
   const res = await fetch(`${API_BASE}/entries`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
+    credentials: "include",
+    headers: authHeaders(),
   });
 
   if (!res.ok) {
@@ -57,10 +223,8 @@ export async function createEntry(userTextRaw) {
     console.debug("[api] POST /entries payload", { mood });
     res = await fetch(`${API_BASE}/entries`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      credentials: "include",
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ mood }),
     });
   } catch (networkError) {
@@ -104,11 +268,10 @@ export async function deleteEntry(id) {
   }
   const res = await fetch(`${API_BASE}/entries/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { Accept: "application/json" },
+    credentials: "include",
+    headers: authHeaders(),
   });
   if (!res.ok) {
     throw await parseErrorResponse(res);
   }
-  // 204 No Content - no body to parse
 }
-

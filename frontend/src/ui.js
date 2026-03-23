@@ -1,22 +1,29 @@
-const textarea = document.querySelector("#journal-input");
-const form = document.querySelector("#journal-form");
-const submitButton = document.querySelector("#submit-btn");
-const loadingIndicator = document.querySelector("#loading");
-const errorBanner = document.querySelector("#error");
-const aiResponseEl = document.querySelector("#ai-response");
-const aiResponseSection = document.querySelector("#ai-response-section");
-const historyContainer = document.querySelector("#history");
-const historyList = document.querySelector("#history-list");
+/** Query journal UI within the current page outlet (set via setUiScope). */
+let _scope = document;
+
+export function setUiScope(root) {
+  _scope = root ?? document;
+}
+
+export function clearUiScope() {
+  _scope = document;
+}
+
+function q(sel) {
+  return _scope.querySelector(sel);
+}
 
 export function getFormElements() {
   return {
-    textarea,
-    form,
-    submitButton,
+    textarea: q("#journal-input"),
+    form: q("#journal-form"),
+    submitButton: q("#submit-btn"),
   };
 }
 
 export function setLoading(isLoading) {
+  const loadingIndicator = q("#loading");
+  const submitButton = q("#submit-btn");
   if (!loadingIndicator || !submitButton) return;
   const visible = Boolean(isLoading);
   loadingIndicator.hidden = !visible;
@@ -24,6 +31,7 @@ export function setLoading(isLoading) {
 }
 
 export function showError(message) {
+  const errorBanner = q("#error");
   if (!errorBanner) return;
   if (!message) {
     errorBanner.hidden = true;
@@ -59,6 +67,8 @@ export function showToast(message) {
 }
 
 export function renderCurrentResponse(text) {
+  const aiResponseEl = q("#ai-response");
+  const aiResponseSection = q("#ai-response-section");
   if (!aiResponseEl) return;
 
   const content = text && text.trim() ? text.trim() : null;
@@ -80,6 +90,7 @@ const TRASH_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
 export function renderHistory(entries, onDeleteEntry) {
+  const historyList = q("#history-list");
   if (!historyList) return;
 
   historyList.innerHTML = "";
@@ -160,10 +171,10 @@ export function renderHistory(entries, onDeleteEntry) {
 
     historyList.appendChild(card);
   }
-
 }
 
 export function autoResizeTextarea() {
+  const textarea = q("#journal-input");
   if (!textarea) return;
   textarea.style.height = "auto";
   textarea.style.height = `${textarea.scrollHeight}px`;
@@ -185,4 +196,3 @@ function formatDate(isoString) {
     return isoString;
   }
 }
-

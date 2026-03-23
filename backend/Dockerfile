@@ -16,6 +16,7 @@ RUN npx prisma generate
 COPY index.js ./
 COPY routes ./routes/
 COPY lib ./lib/
+COPY middleware ./middleware/
 
 EXPOSE 3000
 

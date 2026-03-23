@@ -102,11 +102,14 @@ mood-journal/
 | Module | Responsibility |
 |--------|----------------|
 | `backend/index.js` | Create Express app, CORS from `FRONTEND_ORIGIN`, `express.json()`, mount routes, 4-arg error handler, listen on `PORT`. |
-| `backend/routes/entries.js` | GET list entries (Prisma), POST validate mood → call AI → create entry → respond with entry (+ optional `aiError`). |
+| `backend/routes/entries.js` | GET/POST/DELETE entries scoped to `req.user.id` (requires `requireAuth` on mount). |
+| `backend/routes/users.js` | Protected `GET`/`PUT` `/users/me`, `PUT` `/users/me/password`. |
+| `backend/lib/userPublic.js` | `toPublicUser()` — safe user JSON for API responses. |
+| `backend/middleware/authMiddleware.js` | `requireAuth` — JWT from cookie or `Authorization: Bearer`. |
 | `backend/lib/db.js` | Build Prisma client with `PrismaPg` and `DATABASE_URL`; throw if `DATABASE_URL` missing. |
 | `backend/lib/ai.js` | Call Anthropic `/v1/messages` with system prompt and user message; parse `content` blocks; return `{ text }` or `{ text: null, errorCode }`. |
 | `frontend/src/main.js` | Bootstrap, wire form/textarea, load initial history, handle submit, handle delete entry, map `aiError` to user message. |
-| `frontend/src/api.js` | Resolve `API_BASE` (VITE_API_URL or production fallback or `/api`), implement `getEntries`, `createEntry`, and `deleteEntry`, parse errors. |
+| `frontend/src/api.js` | Resolve `API_BASE`, `getEntries` / `createEntry` / `deleteEntry` with `credentials: 'include'` for cookie auth. |
 | `frontend/src/state.js` | Central in-memory state for entries, loading, error, currentResponse; getters/setters. |
 | `frontend/src/ui.js` | DOM queries, show/hide loading and error, render “Latest reflection” and history list. |
 
@@ -122,21 +125,21 @@ mood-journal/
 
 ### Express app structure
 
-1. CORS middleware (origin from `FRONTEND_ORIGIN` or `*`, methods GET/POST/DELETE/OPTIONS, headers Content-Type/Accept).
-2. `express.json()` for parsing JSON bodies.
-3. Routes: `GET /`, `GET /health`, `app.use("/entries", entriesRouter)`, `GET /entries/ai-status`.
+1. CORS middleware (origin allowlist or reflect `Origin` when open; methods GET/POST/DELETE/OPTIONS; headers Content-Type, Accept, Authorization).
+2. `cookie-parser`, `express.json()`, Passport initialize; auth routes; `app.use("/users", createUsersRouter())`.
+3. `GET /entries/ai-status` (public); `app.use("/entries", requireAuth, entriesRouter)` for user-scoped journal CRUD.
 4. Global error handler: `(err, req, res, next) => res.status(err.statusCode ?? 500).json({ error: message })`.
 
 There are no separate “controllers” or “services” in the codebase; route handlers and `lib/ai.js` + `lib/db.js` fulfill those roles.
 
 ### Route organization
 
-- All entry-related logic lives in `backend/routes/entries.js` (single router).
-- The router is mounted at `/entries`, so:
-  - `GET /entries` → list entries
-  - `POST /entries` → create entry (with AI)
-  - `DELETE /entries/:id` → delete entry by id
-- `GET /entries/ai-status` is defined on the main app in `index.js` (not on the router), so it does not conflict with the router’s `GET /`.
+- **`backend/routes/users.js`** — `createUsersRouter()` with `requireAuth` on all routes; mounted at `/users`.
+- **`backend/routes/entries.js`** — mounted at `/entries` **after** `requireAuth`, so:
+  - `GET /entries` → list **current user’s** entries
+  - `POST /entries` → create entry (with AI) for **current user**
+  - `DELETE /entries/:id` → delete if owned by current user
+- **`GET /entries/ai-status`** is defined on the main app in `index.js` (not on the protected router), so it stays public and does not conflict with `GET /entries`.
 
 ### Prisma / database access
 
@@ -173,7 +176,9 @@ There are no separate “controllers” or “services” in the codebase; route
 | `DATABASE_URL` | Yes | PostgreSQL connection string; used by Prisma and by `lib/db.js`. |
 | `ANTHROPIC_API_KEY` | Yes for AI | Used in `lib/ai.js` for the Anthropic API. If missing, entries are still created with `aiResponse: null` and `aiError: "key_missing"`. |
 | `PORT` | No (default 3000) | Port the Express server listens on. |
-| `FRONTEND_ORIGIN` | No (default `*`) | Allowed CORS origin(s), comma-separated; no trailing slash. |
+| `FRONTEND_ORIGIN` | No (default `*`) | Allowed CORS origin(s), comma-separated; no trailing slash. If unset, request `Origin` is echoed for credentialed requests. |
+| `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | Resend SMTP + sender for password reset (`lib/mail.js`). If unset, forgot-password returns 200 but sends no mail. |
+| `PASSWORD_RESET_FRONTEND_URL` | No | Reset link base in emails; falls back to `FRONTEND_ORIGIN` + `/reset-password`. |
 
 ---
 
@@ -185,10 +190,15 @@ See **docs/API.md** for a concise endpoint reference. Summary:
 |--------|--------|--------|
 | GET | `/` | Liveness; returns `{ ok: true, message: "Mood journal API" }`. |
 | GET | `/health` | Health check; returns `{ status: "ok" }`. |
-| GET | `/entries` | List all journal entries (newest first). Response: JSON array of `JournalEntry`. |
-| POST | `/entries` | Create one entry. Body: `{ mood: string }`. Response: 201 + created entry; may include `aiError` when Claude fails. |
-| DELETE | `/entries/:id` | Delete one entry by id. Response: 204 No Content; 404 if not found. |
-| GET | `/entries/ai-status` | Check if `ANTHROPIC_API_KEY` is set (value not exposed). Response: `{ ok: true, hasApiKey: boolean }`. |
+| GET | `/entries` | **Auth required.** List current user’s journal entries (newest first). |
+| POST | `/entries` | **Auth required.** Create one entry for current user. Body: `{ mood: string }`. |
+| DELETE | `/entries/:id` | **Auth required.** Delete own entry; 404 if missing or not owned. |
+| GET | `/entries/ai-status` | Public. Check if `ANTHROPIC_API_KEY` is set. |
+| GET/PUT | `/users/me` | **Auth required.** Read or update profile (`name`, `avatarUrl`). |
+| PUT | `/users/me/password` | **Auth required.** Change password (`currentPassword`, `newPassword`). |
+| GET | `/auth/me` | **Auth required.** Same as `GET /users/me` (legacy). |
+| POST | `/auth/register`, `/auth/login`, `/auth/logout` | Registration, session cookie, logout. |
+| POST | `/auth/forgot-password`, `/auth/reset-password` | Email reset flow (see **docs/API.md**). |
 
 ---
 
@@ -202,31 +212,25 @@ See **docs/API.md** for a concise endpoint reference. Summary:
 
 ### Models and relationships
 
-Single model:
+- **`User`** — auth profile (`email`, `passwordHash`, optional `avatarUrl`, `theme`, optional password-reset fields).
+- **`JournalEntry`** — `mood`, `aiResponse`, optional **`userId`** FK to `User` (API scopes entries per user).
 
-```prisma
-model JournalEntry {
-  id         String   @id @default(cuid())
-  mood       String
-  aiResponse String?
-  createdAt  DateTime @default(now())
-}
-```
-
-No relations; no other models.
+See `backend/prisma/schema.prisma` for the full schema.
 
 ### How entries are stored
 
-- Each POST that passes validation creates one `JournalEntry` row.
+- Each authenticated POST creates one `JournalEntry` with `userId` set to the current user.
 - `mood` is the user-supplied string (trimmed).
 - `aiResponse` is the Claude reply text, or `null` if the API key was missing, the API failed, or the response had no extractable text.
 - `aiError` is **not** stored; it is only added to the HTTP response when the AI layer returns an `errorCode`.
+- Legacy rows with `userId: null` are not returned by `GET /entries` for any user.
 
 ### Important fields
 
 | Field | Type | Notes |
 |-------|------|--------|
 | `id` | String (cuid) | Primary key, generated by Prisma. |
+| `userId` | String? | Owner; set on new entries via API. |
 | `mood` | String | Required; user’s input. |
 | `aiResponse` | String? | Claude’s reply or null. |
 | `createdAt` | DateTime | Set by DB default. |
@@ -244,11 +248,13 @@ No relations; no other models.
 ### Entry point
 
 - **HTML:** `frontend/index.html` loads `<script type="module" src="/src/main.js"></script>`.
-- **JS:** `frontend/src/main.js` imports `style.css`, `api.js`, `state.js`, `ui.js`, then runs `bootstrap().catch(...)`.
+- **JS:** `frontend/src/main.js` imports `style.css`, hydrates session via `GET /auth/session`, creates **Navigo** router (`router.js`), renders nav, resolves the current URL.
 
 ### HTML / CSS / JS structure
 
-- Single page; no routing. All UI is driven by JS (querySelector, innerHTML, textContent, classList).
+- **Client-side routes** (History API, no full reload): `/` journal, `/login`, `/signup`, `/settings`, `/forgot-password`, `/reset-password?token=`. Protected routes redirect to `/login` without a JWT in memory.
+- **Outlet:** `#app-outlet` is cleared and repopulated per route; journal markup is built in `pages/journalPage.js`. `ui.js` uses `setUiScope(outlet)` so queries stay inside the active page.
+- **Auth:** In-memory `accessToken` from login/register/refresh responses; `api.js` sends `Authorization: Bearer` plus `credentials: 'include'` for cookies.
 - **CSS:** `frontend/src/style.css`; no CSS framework or CSS modules.
 - **JS:** ES modules only; no bundling framework other than Vite (which bundles for dev and build).
 
@@ -266,7 +272,7 @@ No relations; no other models.
 
 1. User submits form (button or Ctrl/Cmd+Enter).
 2. `handleSubmit(textarea)` runs: validates non-empty trimmed text, sets loading, clears error.
-3. `createEntry(trimmed)` → `POST ${API_BASE}/entries` with `{ mood: trimmed }`.
+3. `createEntry(trimmed)` → `POST ${API_BASE}/entries` with `{ mood: trimmed }` and `credentials: 'include'` (requires logged-in cookie for journal API).
 4. On success: response is the created entry (with optional `aiError`). State is updated: `prependEntry(entry)`, then either set `currentResponse` and error from `entry.aiError` message or set `currentResponse` to `entry.aiResponse` and clear error. Then `renderCurrentResponse`, `renderHistory`, clear textarea.
 5. On failure: catch block sets error state and calls `showError(getError())`.
 6. `setClaudeLoading(false)` in `finally`.
@@ -275,9 +281,9 @@ No relations; no other models.
 
 - **Module:** `frontend/src/api.js`.
 - **Base URL:** `getApiBase()`: (1) `import.meta.env.VITE_API_URL` if set (trimmed trailing slash), (2) if `window.location.origin === "https://viper-mood-journal.vercel.app"` then hardcoded production backend URL, (3) else `"/api"` (proxied by Vite to `http://localhost:3000` with path rewritten so `/api/entries` → `http://localhost:3000/entries`).
-- **getEntries:** `GET ${API_BASE}/entries`, Accept application/json; throws on !res.ok with message from body or statusText.
-- **createEntry:** `POST ${API_BASE}/entries`, Content-Type and Accept application/json, body `JSON.stringify({ mood })`; on !res.ok throws; on success validates `data.id`, `data.mood`, `data.createdAt` and returns `data`.
-- **deleteEntry:** `DELETE ${API_BASE}/entries/${id}`; on !res.ok throws; on 204 returns without parsing body.
+- **Session:** `fetchSession` → `GET /auth/session` (cookie) for full-page reload / OAuth return.
+- **Auth helpers:** `loginRequest`, `registerRequest`, `logoutRequest`, `forgotPasswordRequest`, `resetPasswordRequest`, `getMeRequest`, `updateMeRequest`, `updatePasswordRequest`.
+- **getEntries / createEntry / deleteEntry:** same as before, with `Authorization: Bearer` when `accessToken` is set (see `authHeaders()` in `api.js`).
 
 ### Loading state handling
 

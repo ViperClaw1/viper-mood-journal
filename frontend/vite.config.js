@@ -15,6 +15,11 @@ export default defineConfig({
           });
         },
       },
+      // Same-origin avatar images when API stores http://localhost:3000/uploads/...
+      "/uploads": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
     },
   },
 });

@@ -4,10 +4,11 @@ import { getJournalingResponse } from "../lib/ai.js";
 
 export const entriesRouter = Router();
 
-/** GET /entries - list all journal entries, newest first */
+/** GET /entries - list current user's journal entries, newest first */
 entriesRouter.get("/", async (req, res, next) => {
   try {
     const entries = await prisma.journalEntry.findMany({
+      where: { userId: req.user.id },
       orderBy: { createdAt: "desc" },
     });
     res.json(entries);
@@ -35,6 +36,7 @@ entriesRouter.post("/", async (req, res, next) => {
       data: {
         mood: mood.trim(),
         aiResponse: aiText ?? undefined,
+        userId: req.user.id,
       },
     });
 
@@ -46,7 +48,7 @@ entriesRouter.post("/", async (req, res, next) => {
   }
 });
 
-/** DELETE /entries/:id - delete one journal entry */
+/** DELETE /entries/:id - delete one journal entry (owner only) */
 export async function deleteEntryHandler(req, res, next) {
   console.log("[entries] DELETE /entries/:id hit, id =", req.params.id);
   try {
@@ -56,12 +58,17 @@ export async function deleteEntryHandler(req, res, next) {
       err.statusCode = 400;
       return next(err);
     }
-    await prisma.journalEntry.delete({ where: { id: id.trim() } });
-    res.status(204).send();
-  } catch (err) {
-    if (err.code === "P2025") {
+
+    const result = await prisma.journalEntry.deleteMany({
+      where: { id: id.trim(), userId: req.user.id },
+    });
+
+    if (result.count === 0) {
       return res.status(404).json({ error: "Entry not found" });
     }
+
+    res.status(204).send();
+  } catch (err) {
     next(err);
   }
 }
