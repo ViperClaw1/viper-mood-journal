@@ -197,6 +197,11 @@ export function mountSettingsPage(root, onNavigate) {
       const data = await getMeRequest();
       if (disposed) return;
       const u = data.user;
+      if (u && getAccessToken()) {
+        setSession(getAccessToken(), u);
+      } else {
+        applyThemeForUser(u);
+      }
       emailInput.value = u.email || "";
       nameInput.value = u.name || "";
       const url = u.avatarUrl || "";

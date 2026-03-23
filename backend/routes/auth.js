@@ -39,6 +39,16 @@ function getCookieOptions() {
   };
 }
 
+function getClearCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    path: "/",
+  };
+}
+
 function issueAuthCookie(res, user) {
   const token = jwt.sign({ email: user.email }, getJwtSecret(), {
     subject: user.id,
@@ -242,7 +252,7 @@ export function createAuthRouter() {
   // forgot-password + reset-password are registered on app in index.js
 
   r.post("/logout", (req, res) => {
-    res.clearCookie(COOKIE_NAME, getCookieOptions());
+    res.clearCookie(COOKIE_NAME, getClearCookieOptions());
     return res.status(204).send();
   });
 
